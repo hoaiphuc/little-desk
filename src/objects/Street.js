@@ -142,7 +142,7 @@ export default class Street {
     const spill = glow(scene, x + W / 2, y - 4, 0xffc77a, 1, 0.45, 4.7).setScale(1.3, 0.6);
     scene.tweens.add({ targets: sign, alpha: 0.75, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-    makeHotspot(scene, {
+    scene.spots.shop = makeHotspot(scene, {
       x: x + W / 2,
       y: top + H / 2,
       w: W,

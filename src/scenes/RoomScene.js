@@ -9,6 +9,9 @@ import TaskBoard from '../ui/TaskBoard.js';
 import Settings from '../ui/Settings.js';
 import Shop from '../ui/Shop.js';
 import CoinHud from '../ui/CoinHud.js';
+import Pomodoro from '../ui/Pomodoro.js';
+import Tutorial from '../ui/Tutorial.js';
+import { TASK_REWARD } from '../utils/tasks.js';
 import { createTooltip, makeGlowTexture } from '../utils/fx.js';
 import { t } from '../utils/i18n.js';
 import Countryside from '../objects/Countryside.js';
@@ -32,11 +35,16 @@ export default class RoomScene extends Phaser.Scene {
     this.tooltip = createTooltip(this);
     // The HTML overlays and the music outlive scene restarts, so make them once.
     this.lofi ??= new Lofi();
-    this.settings ??= new Settings({ lofi: this.lofi });
+    this.settings ??= new Settings({ lofi: this.lofi, onTutorial: () => this.startTutorial() });
     this.taskBoard ??= new TaskBoard({ onClose: (tasks) => this.onTaskBoardClosed(tasks) });
     this.shop ??= new Shop({ onClose: (bought) => this.onShopClosed(bought) });
     this.coinHud ??= new CoinHud({ onClick: () => this.openShop() });
+    this.pomodoro ??= new Pomodoro();
+    this.tutorial ??= new Tutorial();
     this.events.once('shutdown', () => (this.lofi.onBeat = null)); // the radio is rebuilt next time
+
+    // Hotspots the tutorial points at register themselves here (tasks, shop).
+    this.spots = {};
 
     // Where we are is something you buy in the shop.
     this.mapId = equippedItem('map').id;
@@ -62,10 +70,44 @@ export default class RoomScene extends Phaser.Scene {
     if (data.arrived) {
       this.cameras.main.fadeIn(600, 10, 8, 24);
       this.time.delayedCall(900, () => this.student.say(t(`map.arrive.${this.mapId}`)));
+    } else if (!Tutorial.seen) {
+      this.time.delayedCall(600, () => this.startTutorial());
     } else {
-      this.tooltip.show(t('intro'));
-      this.time.delayedCall(5000, () => this.tooltip.hide());
+      this.showIntro();
     }
+  }
+
+  showIntro() {
+    this.tooltip.show(t('intro'));
+    this.time.delayedCall(5000, () => this.tooltip.hide());
+  }
+
+  // The first-visit tour: the task board, the shop, and the coins that link them.
+  startTutorial() {
+    // Hotspots are in game units; the tour needs screen pixels.
+    const onScreen = (zone) => {
+      const b = zone.getBounds();
+      const c = this.game.canvas.getBoundingClientRect();
+      const s = c.width / this.scale.width;
+      return { x: c.left + b.x * s, y: c.top + b.y * s, w: b.width * s, h: b.height * s };
+    };
+    const coins = () => {
+      const r = this.coinHud.el.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height };
+    };
+    this.tooltip.hide();
+    this.tutorial.start(
+      [
+        { title: () => t('tutorial.tasks.title'), body: () => t('tutorial.tasks.body', { n: TASK_REWARD }), rect: () => onScreen(this.spots.tasks) },
+        {
+          title: () => t(this.mapId === 'map-countryside' ? 'shop.titleCountry' : 'shop.title'),
+          body: () => t('tutorial.shop.body'),
+          rect: () => onScreen(this.spots.shop),
+        },
+        { title: () => t('tutorial.coins.title'), body: () => t('tutorial.coins.body'), rect: coins },
+      ],
+      { onDone: () => this.showIntro(), follow: this.game.canvas }
+    );
   }
 
   // Each place has its own shop: the corner shop in the city, Grandma Tư's

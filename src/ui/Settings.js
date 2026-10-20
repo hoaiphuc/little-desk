@@ -2,7 +2,7 @@ import sfx from '../audio/sfx.js';
 import { LANGS, t, getLang, setLang, onLangChange, translateDom } from '../utils/i18n.js';
 
 // The gear button in the top-left corner and its little settings panel
-// (music, sound effects, language).
+// (music, sound effects, language, replaying the tutorial).
 // Like TaskBoard, it's plain HTML on top of the game canvas.
 
 const KEY = 'cozy-desk.settings';
@@ -65,6 +65,12 @@ const CSS = `
 .st-lang:hover { background: rgba(255, 255, 255, 0.55); }
 .st-lang[aria-checked="true"] { background: #c96f5a; color: #fff6e6; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); }
 .st-switch[aria-checked="true"]::after { transform: translateX(20px); }
+.st-replay {
+  flex: none; padding: 7px 12px; border: 0; border-radius: 9px;
+  background: #eadccb; color: #3a2c4b; font: inherit; font-size: 13px;
+  cursor: pointer; transition: background 0.15s;
+}
+.st-replay:hover { background: #dccbb6; }
 `;
 
 const GEAR = `
@@ -83,7 +89,7 @@ function load() {
 }
 
 export default class Settings {
-  constructor({ lofi }) {
+  constructor({ lofi, onTutorial }) {
     this.lofi = lofi;
     this.state = load();
 
@@ -135,6 +141,15 @@ export default class Settings {
             .map(([code, name]) => `<button class="st-lang" role="radio" data-lang="${code}" lang="${code}">${name}</button>`)
             .join('')}
         </div>
+      </div>
+      <div class="st-row">
+        <div class="st-head">
+          <div>
+            <div class="st-label" data-t="settings.tutorial"></div>
+            <div class="st-sub" data-t="settings.tutorialSub"></div>
+          </div>
+          <button class="st-replay" data-t="settings.tutorialReplay"></button>
+        </div>
       </div>`;
     document.body.append(this.gear, this.panel);
 
@@ -175,6 +190,11 @@ export default class Settings {
       })
     );
     onLangChange(() => this.render());
+
+    q('.st-replay').addEventListener('click', () => {
+      this.close();
+      onTutorial?.();
+    });
 
     this.gear.addEventListener('click', () => (this.isOpen ? this.close() : this.open()));
     document.addEventListener('pointerdown', (e) => {

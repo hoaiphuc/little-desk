@@ -226,7 +226,7 @@ export function createNotesBoard(scene, x, y) {
   const unsubscribe = onTasksChange(render);
   scene.events.once('shutdown', unsubscribe);
 
-  makeHotspot(scene, {
+  scene.spots.tasks = makeHotspot(scene, {
     x,
     y,
     w: 112,

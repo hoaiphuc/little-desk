@@ -250,7 +250,7 @@ export default class Countryside {
     });
 
     const all = [g, sign];
-    makeHotspot(scene, {
+    scene.spots.shop = makeHotspot(scene, {
       x: x + W / 2,
       y: y - 23,
       w: W + 24,

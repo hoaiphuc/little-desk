@@ -5,6 +5,7 @@ import sfx from '../audio/sfx.js';
 import { t, pick } from '../utils/i18n.js';
 import { addCoins, onShopChange } from '../utils/shop.js';
 import { equippedItem, showItemArt } from './items.js';
+import { getPomodoro, onPomodoroChange, onPomodoroDone, formatTime, ROUNDS } from '../utils/pomodoro.js';
 
 // Each prop is a small function: draw it, then make it interactive.
 // To add your own object, copy one of these and call it from RoomScene.
@@ -15,6 +16,7 @@ const LAPTOP_REWARD = 5; // coins for every 8 lines typed
 
 export function createProps(scene) {
   createLamp(scene, 165, DESK_Y);
+  createPomodoro(scene, 255, DESK_Y);
   createLaptop(scene, 352, DESK_Y);
   createMug(scene, 612, DESK_Y);
   createBooks(scene, 712, DESK_Y);
@@ -72,6 +74,96 @@ function createLamp(scene, x, y) {
     if (next !== item) wear(next);
   });
   scene.events.once('shutdown', unsubscribe);
+}
+
+// A tomato-shaped pomodoro timer. Its little screen shows the countdown and
+// takes the colour of the current mode; clicking it opens ui/Pomodoro.js.
+const POMODORO_SCREENS = {
+  focus: { bg: 0xfff6e6, ink: '#a8423d' },
+  short: { bg: 0xd8f0e0, ink: '#3e6e48' },
+  long: { bg: 0xdbe6f5, ink: '#40597a' },
+};
+
+function createPomodoro(scene, x, y) {
+  const g = scene.add.graphics();
+  g.fillStyle(0x000000, 0.18);
+  g.fillEllipse(0, -1, 50, 8);
+  g.fillStyle(0xd9534f, 1);
+  g.fillEllipse(0, -20, 56, 42);
+  g.fillStyle(0xe8746c, 1);
+  g.fillEllipse(-15, -31, 13, 7); // shine
+  g.fillStyle(0x5c9a68, 1);
+  g.fillTriangle(0, -41, -14, -40, -4, -36);
+  g.fillTriangle(0, -41, 14, -40, 4, -36);
+  g.fillTriangle(0, -41, -7, -47, 6, -45);
+  g.fillStyle(0x4f8a5b, 1);
+  g.fillRoundedRect(-1.5, -48, 3, 8, 1.5); // stem
+
+  const screen = scene.add.graphics();
+  const bar = scene.add.graphics(); // how much of this session is left
+  const digits = scene.add.text(0, -21, '', {
+    fontFamily: '"Courier New", Courier, monospace',
+    fontSize: '13px',
+    fontStyle: 'bold',
+    resolution: 2,
+  }).setOrigin(0.5);
+  const c = scene.add.container(x, y, [g, screen, bar, digits]).setDepth(21);
+
+  const render = ({ mode, running, paused, left, total }) => {
+    const look = POMODORO_SCREENS[mode];
+    screen.clear();
+    screen.fillStyle(look.bg, 1);
+    screen.fillRoundedRect(-19, -29, 38, 16, 4);
+    digits.setText(formatTime(left)).setColor(look.ink);
+    bar.clear();
+    if (running || paused) {
+      bar.fillStyle(0xa8423d, 1);
+      bar.fillRoundedRect(-15, -9, 30, 3, 1.5);
+      bar.fillStyle(look.bg, 1);
+      bar.fillRoundedRect(-15, -9, Math.max(3, 30 * (left / total)), 3, 1.5);
+    }
+  };
+  render(getPomodoro());
+
+  // Paused: the digits blink, like a real kitchen timer.
+  scene.time.addEvent({
+    delay: 500,
+    loop: true,
+    callback: () => digits.setAlpha(getPomodoro().paused && digits.alpha === 1 ? 0.3 : 1),
+  });
+
+  const unsubscribe = onPomodoroChange(render);
+  const unsubscribeDone = onPomodoroDone(({ finished, reward, next, round }) => {
+    sfx.ring(finished === 'focus');
+    scene.tweens.add({ targets: c, angle: { from: -8, to: 8 }, duration: 70, yoyo: true, repeat: 5, onComplete: () => c.setAngle(0) });
+    if (reward) floatText(scene, x, y - 56, t('coins.plus', { n: reward }), '#ffd27a', 15);
+    scene.student.lookAt(x);
+    scene.student.say(t(
+      finished !== 'focus' ? 'pomodoro.breakDone' :
+      next === 'long' ? 'pomodoro.focusDoneLong' :
+      'pomodoro.focusDone',
+      { n: Math.min(round, ROUNDS) }
+    ));
+  });
+  scene.events.once('shutdown', () => {
+    unsubscribe();
+    unsubscribeDone();
+  });
+
+  makeHotspot(scene, {
+    x,
+    y: y - 24,
+    w: 60,
+    h: 50,
+    depth: 21.5,
+    label: 'pomodoro.label',
+    wobble: c,
+    onClick: () => {
+      scene.tooltip.hide();
+      sfx.equip();
+      scene.pomodoro.open();
+    },
+  });
 }
 
 function createLaptop(scene, x, y) {

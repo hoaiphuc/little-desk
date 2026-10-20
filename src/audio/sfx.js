@@ -431,6 +431,25 @@ class Sfx {
   crumple() {
     for (let i = 0; i < 9; i++) this.noise({ at: rand(0, 0.3), dur: 0.03, vol: 0.12, freq: rand(1500, 4500), q: 2 });
   }
+
+  // ---- pomodoro ----
+
+  // Winding the tomato timer up (start), or one soft click (pause).
+  timer(start) {
+    if (start) {
+      for (let i = 0; i < 6; i++) this.noise({ at: i * 0.045, dur: 0.015, vol: 0.12, freq: rand(2800, 3400), q: 4 });
+      this.chime(84, 0.3, 0.06);
+    } else {
+      this.noise({ dur: 0.02, vol: 0.15, freq: 2600, q: 3 });
+      this.chime(76, 0.03, 0.05);
+    }
+  }
+
+  // The timer ringing: up the scale when focus ends, back down when a break does.
+  ring(focusDone) {
+    const notes = focusDone ? [84, 88, 91, 96] : [91, 88, 84, 79];
+    [0, 0.75].forEach((start) => notes.forEach((m, i) => this.chime(m, start + i * 0.11, 0.1)));
+  }
 }
 
 export default new Sfx();
