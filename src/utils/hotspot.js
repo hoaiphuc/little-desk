@@ -17,6 +17,10 @@ export function bindHover(scene, obj, { label, onClick, wobble }) {
     if (wobble) scene.tweens.add({ targets: wobble, scale: 1, duration: 120 });
   });
   obj.on('pointerdown', (pointer) => {
+    // Phaser also listens for presses on the whole window, so a click on an
+    // HTML overlay (notes board, shop) would fall through to whatever sits
+    // under it in the room. Only presses on the canvas itself count.
+    if (pointer.event?.target !== scene.game.canvas) return;
     if (wobble) {
       scene.tweens.add({
         targets: wobble,
